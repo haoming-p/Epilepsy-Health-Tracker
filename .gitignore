@@ -14,9 +14,13 @@
 # misc
 .DS_Store
 .env.local
+.env
 .env.development.local
 .env.test.local
 .env.production.local
+
+# SQLite database
+*.sqlite
 
 npm-debug.log*
 yarn-debug.log*
