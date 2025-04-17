@@ -9,65 +9,70 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 const userController = {
   registerUser: async (req, res) => {
     try {
-      const { firstName, lastName, email, password, birthDate, gender, phone } =
-        req.body;
-
-      // Check if user already exists in our database
+      const { firstName, lastName, email, password, birthDate, gender, phone } = req.body;
+      
+      // Check only for required fields
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+  
+      // Check if user already exists
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
-
-      // Hash password for security
+  
+      // Hash password
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
-
-      // Prepare Patient resource data for FHIR server
+  
+      // Prepare Patient resource with optional fields
       const patientResource = {
         resourceType: "Patient",
         name: [
           {
             use: "official",
-            family: lastName,
-            given: [firstName],
+            family: lastName || "",
+            given: [firstName || ""],
           },
         ],
-        gender: gender,
-        birthDate: birthDate,
+        gender: gender || "",
+        birthDate: birthDate || "",
         telecom: [
-          {
+          // Only add phone if provided
+          ...(phone ? [{
             system: "phone",
             value: phone,
             use: "mobile",
-          },
+          }] : []),
+          // Email is required
           {
             system: "email",
             value: email,
           },
         ],
       };
-
+  
       // Create Patient in FHIR server
       const fhirPatient = await fhirService.createPatient(patientResource);
       const patientId = fhirPatient.id;
-
+  
       // Create user in SQLite
       const newUser = await User.create({
         email,
         password: hashedPassword,
         patientId,
-        firstName,
-        lastName,
+        firstName: firstName || "",
+        lastName: lastName || "",
       });
-
-      // Generate JWT token for authentication
+  
+      // Generate JWT token and return response
       const token = jwt.sign(
         { userId: newUser.id, email: newUser.email },
         JWT_SECRET,
         { expiresIn: "24h" }
       );
-
-      // Return success response with token and IDs
+  
       res.status(201).json({
         message: "User registered successfully",
         token,
@@ -76,12 +81,53 @@ const userController = {
       });
     } catch (error) {
       console.error("Registration error:", error);
-      res
-        .status(500)
-        .json({ message: error.message || "Server error during registration" });
+      res.status(500).json({ 
+        message: error.message || "Server error during registration" 
+      });
     }
   },
 
+  loginUser: async (req, res) => {
+    try {
+      const { email, password } = req.body;
+  
+      // Validation - check if email and password are provided
+      if (!email || !password) {
+        return res.status(400).json({ message: "Please provide email and password" });
+      }
+  
+      // Check if user exists
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        return res.status(401).json({ message: "No user exists" });
+      }
+  
+      // Verify password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+  
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+  
+      // Return success with token and user info
+      res.json({
+        message: "Login successful",
+        token,
+        userId: user.id,
+        patientId: user.patientId
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Server error during login" });
+    }
+  },
+  
   getUserInfo: async (req, res) => {
     try {
       // Get user ID from the authentication middleware
@@ -114,7 +160,6 @@ const userController = {
         .json({ message: "Server error retrieving user information" });
     }
   },
-
   
   getAllPatients: async (req, res) => {
     try {

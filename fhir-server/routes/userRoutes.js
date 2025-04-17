@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 
 // User routes
 router.post('/register', userController.registerUser);
+router.post('/login', userController.loginUser);
 router.get('/me', auth, userController.getUserInfo);
 router.get('/patients', userController.getAllPatients);
 
