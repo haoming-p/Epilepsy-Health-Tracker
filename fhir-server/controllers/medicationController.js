@@ -3,8 +3,6 @@ const fhirService = require('../services/fhirService');
 const medicationController = {
   
   // Create a new medication
-  // minimal request: { name: 'Aspirin' }
-  // detailed request: { name: 'Aspirin', strength: { value: 500, unit: 'mg' }, form: 'tablet', notes: 'Take with food' }
   createMedication: async (req, res) => {
     try {
       const { name, strength, form, notes } = req.body;
@@ -50,8 +48,6 @@ const medicationController = {
   },
 
   // add medication schedule to a patient
-  // minimal request: {"patientId": "patient-123", "medicationName": "Lisinopril"}
-  // detailed request: {"patientId": "patient-123", "medicationName": "Lisinopril", "dosage": "Take 1 tablet daily", "frequency": 1, "timing": ["08:00", "20:00"], "startDate": "2023-10-01", "endDate": "2023-10-31", "notes": "Take with water"}
   addMedicationSchedule: async (req, res) => {
     try {
       const { 
@@ -63,7 +59,9 @@ const medicationController = {
         timing, // Array of times to take medication (e.g., ["08:00", "20:00"])
         startDate,
         endDate,
-        notes 
+        notes,
+        periodValue,
+        periodUnit
       } = req.body;
 
       if (!patientId || (!medicationId && !medicationName)) {
@@ -102,8 +100,8 @@ const medicationController = {
           timing: {
             repeat: {
               frequency: frequency || 1,
-              period: 1,
-              periodUnit: "d",
+              period: periodValue || 1,
+              periodUnit: periodUnit || "d", // d=day, wk=week, mo=month
               timeOfDay: timing || ["09:00"]
             }
           }
@@ -117,7 +115,7 @@ const medicationController = {
         note: notes ? [{ text: notes }] : undefined
       };
 
-      // Use a new function in the FHIR service to create MedicationRequest
+      // Use the function in the FHIR service to create MedicationRequest
       const result = await fhirService.createMedicationRequest(medicationRequest);
       
       res.status(201).json({
