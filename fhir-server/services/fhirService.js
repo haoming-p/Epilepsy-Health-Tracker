@@ -1,9 +1,8 @@
 const axios = require("axios");
 
-// This service encapsulates all interactions with the FHIR server.
-
-const FHIR_SERVER_URL =
-  process.env.FHIR_SERVER_URL || "https://hapi.fhir.org/baseR4";
+// Updated to use SMART Health IT FHIR server
+const FHIR_SERVER_URL = 
+  process.env.FHIR_SERVER_URL || "https://launch.smarthealthit.org/v/r4/fhir";
 
 const fhirService = {
 
@@ -59,6 +58,7 @@ const fhirService = {
   getAllPatients: async (limit = 50, offset = 0) => {
     try {
       // Build the query URL with pagination parameters
+      // Note: SMART Health IT might use _count instead of _limit
       const queryUrl = `${FHIR_SERVER_URL}/Patient?_count=${limit}&_offset=${offset}`;
 
       // Make GET request to fetch all patients
@@ -77,7 +77,6 @@ const fhirService = {
       throw new Error("Failed to retrieve patients from FHIR server");
     }
   },
-
 
   createMedication: async (medicationData) => {
     try {
