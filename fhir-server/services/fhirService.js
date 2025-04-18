@@ -103,12 +103,73 @@ const fhirService = {
     }
   },
 
+  createMedicationRequest: async (medicationRequestData) => {
+    try {
+      // Make POST request to create MedicationRequest resource
+      const response = await axios.post(
+        `${FHIR_SERVER_URL}/MedicationRequest`,
+        medicationRequestData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      // Return the created MedicationRequest resource
+      return response.data;
+    } catch (error) {
+      console.error(
+        "FHIR createMedicationRequest error:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to create medication request in FHIR server");
+    }
+  },
+
+  getPatientMedicationRequests: async (patientId, status, startDate, endDate) => {
+    try {
+      // Build query URL with patient filter
+      let queryUrl = `${FHIR_SERVER_URL}/MedicationRequest?subject=${patientId}`;
+      
+      // Add status filter if provided
+      if (status) {
+        queryUrl += `&status=${status}`;
+      }
+      
+      // Add date filtering if provided
+      if (startDate) {
+        queryUrl += `&authoredon=ge${startDate}`;
+      }
+      if (endDate) {
+        queryUrl += `&authoredon=le${endDate}`;
+      }
+
+      // Make GET request to fetch MedicationRequests
+      const response = await axios.get(queryUrl, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      // Return the Bundle of MedicationRequests
+      return response.data;
+    } catch (error) {
+      console.error(
+        "FHIR getPatientMedicationRequests error:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to retrieve medication requests from FHIR server");
+    }
+  },
+
   createMedicationStatement: async (data) => {
     try {
       // Construct the MedicationStatement resource
       const medicationStatement = {
         resourceType: "MedicationStatement",
-        status: "active",
+        status: data.status || "active",
         medicationReference: {
           reference: `Medication/${data.medicationId}`,
           display: data.medicationName,
@@ -148,23 +209,36 @@ const fhirService = {
     }
   },
 
-  getPatientMedicationStatements: async (patientId) => {
+  getPatientMedicationStatements: async (patientId, status, startDate, endDate) => {
     try {
-      // Make GET request with patient filter to find all related MedicationStatements
-      const response = await axios.get(
-        `${FHIR_SERVER_URL}/MedicationStatement?patient=${patientId}`,
-        {
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
+      // Build query URL with patient filter
+      let queryUrl = `${FHIR_SERVER_URL}/MedicationStatement?subject=${patientId}`;
+      
+      // Add status filter if provided
+      if (status) {
+        queryUrl += `&status=${status}`;
+      }
+      
+      // Add date filtering if provided
+      if (startDate) {
+        queryUrl += `&effective=ge${startDate}`;
+      }
+      if (endDate) {
+        queryUrl += `&effective=le${endDate}`;
+      }
+
+      // Make GET request to fetch MedicationStatements
+      const response = await axios.get(queryUrl, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
 
       // Return the Bundle of MedicationStatements
       return response.data;
     } catch (error) {
       console.error(
-        "FHIR getMedicationStatements error:",
+        "FHIR getPatientMedicationStatements error:",
         error.response?.data || error.message
       );
       throw new Error(
