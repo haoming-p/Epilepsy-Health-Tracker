@@ -5,7 +5,6 @@
 //  Created by Ria  Lakkimsetti on 4/6/25.
 //
 
-
 import SwiftUI
 
 struct MainView: View {
