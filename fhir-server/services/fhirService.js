@@ -273,6 +273,18 @@ const fhirService = {
           system: "http://unitsofmeasure.org",
           code: "/min",
         },
+        // Add interpretation for abnormal values
+        interpretation: data.abnormal ? [
+          {
+            coding: [
+              {
+                system: "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                code: data.value < 80 ? "L" : "H",
+                display: data.value < 80 ? "Low" : "High"
+              }
+            ]
+          }
+        ] : undefined
       };
 
       // Make POST request to create Observation
@@ -298,38 +310,28 @@ const fhirService = {
     }
   },
 
-  getPatientHeartRateObservations: async (patientId, startDate, endDate) => {
+  getPatientHeartRateObservations: async (patientId) => {
     try {
-      // Build query URL with patient and code for heart rate
-      let queryUrl = `${FHIR_SERVER_URL}/Observation?patient=${patientId}&code=http://loinc.org|8867-4`;
-
-      // Add date filtering if provided
-      if (startDate) {
-        queryUrl += `&date=ge${startDate}`;
-      }
-      if (endDate) {
-        queryUrl += `&date=le${endDate}`;
-      }
-
-      // Make GET request to fetch heart rate observations
+      // Build query URL with patient and observation type filters
+      let queryUrl = `${FHIR_SERVER_URL}/Observation?subject=Patient/${patientId}`;
+      
+      // Make GET request to fetch heart rate Observations
       const response = await axios.get(queryUrl, {
         headers: {
           Accept: "application/json",
         },
       });
-
-      // Return the Bundle of Observations
+  
+      // Return the Bundle of heart rate Observations
       return response.data;
     } catch (error) {
       console.error(
-        "FHIR getHeartRateObservations error:",
+        "FHIR getPatientHeartRateObservations error:",
         error.response?.data || error.message
       );
-      throw new Error(
-        "Failed to retrieve heart rate observations from FHIR server"
-      );
+      throw new Error("Failed to retrieve heart rate observations from FHIR server");
     }
-  },
+  }
 };
 
 module.exports = fhirService;

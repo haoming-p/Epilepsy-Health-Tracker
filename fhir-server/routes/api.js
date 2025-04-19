@@ -7,6 +7,6 @@ const heartRateRoutes = require('./heartRateRoutes');
 // Mount route files
 router.use('/users', userRoutes);
 router.use('/medications', medicationRoutes);
-router.use('/heart-rates', heartRateRoutes);
+router.use('/heartrate', heartRateRoutes);
 
 module.exports = router;
