@@ -11,48 +11,28 @@ struct SeizureEntry: Identifiable {
     let id = UUID()
     let date: String
     let bpm: Int
-    let description: String
+    var description: String
     var isExpanded: Bool = false
 }
 
 struct ContentView: View {
-    @State private var searchText = ""
-    @State private var entries = [
-        SeizureEntry(date: "2025.03.05", bpm: 150, description: "Description for March 5 seizure."),
-        SeizureEntry(date: "2025.02.28", bpm: 120, description: ""),
-        SeizureEntry(date: "2025.02.17", bpm: 130, description: ""),
-        SeizureEntry(date: "2025.01.31", bpm: 125, description: ""),
-        SeizureEntry(date: "2025.01.15", bpm: 140, description: ""),
-        SeizureEntry(date: "2025.01.03", bpm: 135, description: ""),
-        SeizureEntry(date: "2024.12.20", bpm: 145, description: "")
-    ]
+    @State private var entries: [SeizureEntry] = []
+    @State private var newDescription = ""
+    @State private var selectedEntryIndex: Int?
+
+    // Get today's date in YYYY.MM.DD format
+    var todaysDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy.MM.dd"
+        return formatter.string(from: Date())
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Hello,")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-
-                Text("John")
-                    .font(.title3)
-                    .foregroundColor(.white)
-
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                    TextField("Search Date...", text: $searchText)
-                        .foregroundColor(.black)
-                }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(20)
-            }
-            .padding()
-            .background(Color.blue)
+            // Header background only
+            Color.blue
+                .frame(height: 80)
+                .ignoresSafeArea(edges: .top)
 
             // Seizure Diary Title
             HStack {
@@ -63,6 +43,28 @@ struct ContentView: View {
                 Spacer()
             }
             .padding()
+
+            // Today's Entry Input
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Add Description for Today (\(todaysDate)):")
+                    .bold()
+                TextField("Enter description...", text: $newDescription)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                Button("Submit") {
+                    guard !newDescription.isEmpty else { return }
+
+                    // Prevent duplicate entries for today
+                    if !entries.contains(where: { $0.date == todaysDate }) {
+                        let newEntry = SeizureEntry(date: todaysDate, bpm: 140, description: newDescription)
+                        entries.insert(newEntry, at: 0)
+                        newDescription = ""
+                    }
+                }
+                .padding(.top, 5)
+            }
+            .padding(.horizontal)
+
+            Divider()
 
             // Seizure Entries
             ScrollView {
@@ -80,6 +82,8 @@ struct ContentView: View {
                                     }
                                     Button(action: {
                                         entries[i].isExpanded.toggle()
+                                        selectedEntryIndex = entries[i].isExpanded ? i : nil
+                                        newDescription = entries[i].description
                                     }) {
                                         Image(systemName: entries[i].isExpanded ? "chevron.up" : "chevron.down")
                                     }
@@ -90,11 +94,23 @@ struct ContentView: View {
                             .cornerRadius(15)
 
                             if entries[i].isExpanded {
-                                VStack(alignment: .leading, spacing: 5) {
+                                VStack(alignment: .leading, spacing: 10) {
                                     Text("Description:")
                                         .bold()
                                     Text(entries[i].description.isEmpty ? "No details provided." : entries[i].description)
                                         .fixedSize(horizontal: false, vertical: true)
+
+                                    // Edit + Update
+                                    TextField("Update description...", text: $newDescription)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                                    Button("Update") {
+                                        if let selected = selectedEntryIndex {
+                                            entries[selected].description = newDescription
+                                            newDescription = ""
+                                        }
+                                    }
+                                    .padding(.top, 5)
                                 }
                                 .padding(.horizontal)
                             }
@@ -104,21 +120,9 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
             }
-
-            // Bottom Navigation
-            HStack {
-                Spacer()
-                Image(systemName: "house.fill")
-                Spacer()
-                Image(systemName: "ellipsis.circle.fill")
-                Spacer()
-            }
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .clipShape(Capsule())
-            .padding(.bottom, 10)
         }
-        .ignoresSafeArea(edges: .top)
+        .onAppear {
+            // TODO: Integrate backend API: GET /heart-rates/patient/:patientId
+        }
     }
 }

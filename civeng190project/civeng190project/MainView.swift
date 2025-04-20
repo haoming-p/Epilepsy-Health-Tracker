@@ -23,12 +23,6 @@ struct MainView: View {
                     Image(systemName: "pills.fill")
                     Text("Medication")
                 }
-
-            HeartRateView()
-                .tabItem {
-                    Image(systemName: "heart.fill")
-                    Text("Heart Rate")
-                }
         }
     }
 }
