@@ -1,120 +1,161 @@
 const fhirService = require('../services/fhirService');
 
 const heartRateController = {
-  // Add a heart rate measurement for a patient
-  addHeartRate: async (req, res) => {
-    try {
-      const { patientId, value, timestamp } = req.body;
-      if (!patientId || !value) {
-        return res.status(400).json({ message: 'Patient ID and heart rate value are required' });
-      }
-      if (value < 30 || value > 220) {
-        return res.status(400).json({ message: 'Heart rate value must be between 30 and 220 BPM' });
-      }
-
-      // Prepare data for the Observation
-      const heartRateData = {
-        patientId,
-        value,
-        timestamp: timestamp || new Date().toISOString()
-      };
-
-      // Create the Observation in FHIR
-      const result = await fhirService.createHeartRateObservation(heartRateData);
-      
-      res.status(201).json({
-        message: 'Heart rate observation created successfully',
-        observationId: result.id,
-        observation: result
-      });
-    } catch (error) {
-      console.error('Error adding heart rate measurement:', error);
-      res.status(500).json({ message: 'Failed to add heart rate measurement' });
-    }
-  },
-
-  // Get heart rate measurements for a patient
-  getPatientHeartRates: async (req, res) => {
-    try {
-      const { patientId } = req.params;
-      const { startDate, endDate } = req.query;
-      if (!patientId) {
-        return res.status(400).json({ message: 'Patient ID is required' });
-      }
-      // Fetch heart rate observations from FHIR
-      const result = await fhirService.getPatientHeartRateObservations(patientId, startDate, endDate);
-            const formattedData = {
-        patientId,
-        heartRates: []
-      };
-            if (result.entry && result.entry.length > 0) {
-        formattedData.heartRates = result.entry.map(entry => {
-          const obs = entry.resource;
-          return {
-            id: obs.id,
-            value: obs.valueQuantity?.value,
-            unit: obs.valueQuantity?.unit,
-            timestamp: obs.effectiveDateTime,
-            status: obs.status
-          };
-        });
-      }
-            res.json(formattedData);
-    } catch (error) {
-      console.error('Error getting patient heart rates:', error);
-      res.status(500).json({ message: 'Failed to get patient heart rates' });
-    }
-  },
-  
   // Generate mock heart rate data for a patient
   generateMockHeartRateData: async (req, res) => {
     try {
-      const { patientId, days = 7, readingsPerDay = 24 } = req.body;
+      const { patientId, days = 3 } = req.body;
       
       if (!patientId) {
         return res.status(400).json({ message: 'Patient ID is required' });
       }
       
       const createdObservations = [];
+      const abnormalObservations = [];
       const now = new Date();
       
       // Generate data for the specified number of days
       for (let day = 0; day < days; day++) {
         const date = new Date(now);
         date.setDate(date.getDate() - day);
+        let hasAbnormalForDay = false;
         
-        // Generate readings throughout the day
-        for (let reading = 0; reading < readingsPerDay; reading++) {
-          // Calculate time - distribute readings evenly throughout the day
-          const hour = Math.floor((24 / readingsPerDay) * reading);
-          date.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
+        // Generate 8 readings throughout the day
+        for (let readingIndex = 0; readingIndex < 8; readingIndex++) {
+          // Just set the hours evenly throughout the day (0, 3, 6, 9, 12, 15, 18, 21)
+          const hours = readingIndex * 3;
+          const mins = Math.floor(Math.random() * 60); // Random minute within the hour
+          date.setHours(hours, mins, 0, 0);
           
           // Generate a realistic heart rate
-          // Base heart rate between 60-80, with fluctuations throughout the day
-          const baseHeartRate = 60 + Math.floor(Math.random() * 20);
-          const activityVariation = Math.floor(Math.random() * 40) - 10; // -10 to +30
-          const heartRate = Math.max(40, Math.min(200, baseHeartRate + activityVariation));
+          // Base heart rate between 70-90
+          const baseHeartRate = 70 + Math.floor(Math.random() * 20);
           
+          // Add some variation based on time of day
+          let timeVariation = 0;
+          if (hours >= 6 && hours <= 9) {
+            // Morning activity - higher heart rate
+            timeVariation = Math.floor(Math.random() * 20) + 10;
+          } else if (hours >= 12 && hours <= 14) {
+            // After lunch - slightly higher
+            timeVariation = Math.floor(Math.random() * 15) + 5;
+          } else if (hours >= 17 && hours <= 19) {
+            // Evening exercise - higher heart rate
+            timeVariation = Math.floor(Math.random() * 30) + 15;
+          } else if (hours >= 22 || hours <= 5) {
+            // Sleep - lower heart rate
+            timeVariation = -Math.floor(Math.random() * 20) - 10;
+          }
+          
+          // Random variation
+          const randomVariation = Math.floor(Math.random() * 15) - 7; // -7 to +7
+          
+          // Calculate final heart rate
+          let heartRate = Math.max(40, Math.min(200, baseHeartRate + timeVariation + randomVariation));
+          
+          // Determine if abnormal (< 80 or > 165)
+          let isAbnormal = heartRate < 80 || heartRate > 165;
+          
+          // If this is the last reading of the day and we still don't have an abnormal reading,
+          // force an abnormal reading to ensure each day has at least one
+          if (readingIndex === 7 && !hasAbnormalForDay) {
+            // Generate either a low or high abnormal reading
+            if (Math.random() < 0.5) {
+              // Generate low abnormal (below 80)
+              heartRate = Math.max(40, Math.min(79, 60 + Math.floor(Math.random() * 19)));
+            } else {
+              // Generate high abnormal (above 165)
+              heartRate = Math.max(166, Math.min(200, 166 + Math.floor(Math.random() * 34)));
+            }
+            isAbnormal = true;
+          }
+          
+          if (isAbnormal) {
+            hasAbnormalForDay = true;
+          }
+
           // Prepare the data
           const heartRateData = {
             patientId,
             value: heartRate,
-            timestamp: date.toISOString()
+            timestamp: date.toISOString(),
+            abnormal: isAbnormal
           };
           
           // Create the observation
           const result = await fhirService.createHeartRateObservation(heartRateData);
           createdObservations.push(result.id);
+          
+          // Store abnormal observations
+          if (isAbnormal) {
+            abnormalObservations.push({
+              id: result.id,
+              value: heartRate,
+              date: date.toISOString().split('T')[0],
+              time: date.toISOString().split('T')[1].substring(0, 8),
+              abnormal: true
+            });
+          }
         }
       }
       
       res.status(201).json({
         message: `Successfully generated ${createdObservations.length} mock heart rate observations`,
-        observationCount: createdObservations.length
+        observationCount: createdObservations.length,
+        abnormalObservations: abnormalObservations
       });
     } catch (error) {
       console.error('Error generating mock heart rate data:', error);
       res.status(500).json({ message: 'Failed to generate mock heart rate data' });
+    }
+  },
+
+  // Get abnormal heart rate measurements for a patient
+  getAbnormalHeartRates: async (req, res) => {
+    try {
+      const { patientId } = req.params;
+      
+      if (!patientId) {
+        return res.status(400).json({ message: 'Patient ID is required' });
+      }
+      
+      // Fetch heart rate observations from FHIR
+      const result = await fhirService.getPatientHeartRateObservations(patientId);
+      // console.log("RAW FHIR response:", JSON.stringify(result, null, 2));
+
+      
+
+      const abnormalHeartRates = [];
+      
+      if (result.entry && result.entry.length > 0) {
+        result.entry.forEach(entry => {
+          const obs = entry.resource;
+          const heartRate = obs.valueQuantity?.value;
+          
+          // Check if abnormal (< 80 or > 165)
+          if (heartRate < 60 || heartRate > 100) {
+            const timestamp = obs.effectiveDateTime;
+            const datePart = timestamp.split('T')[0];
+            const timePart = timestamp.split('T')[1].substring(0, 8);
+            
+            abnormalHeartRates.push({
+              id: obs.id,
+              value: heartRate,
+              date: datePart,
+              time: timePart,
+              abnormal: true
+            });
+          }
+        });
+      }
+      
+      res.json({
+        patientId,
+        abnormalHeartRates
+      });
+    } catch (error) {
+      console.error('Error getting abnormal heart rates:', error);
+      res.status(500).json({ message: 'Failed to get abnormal heart rates' });
     }
   }
 };
