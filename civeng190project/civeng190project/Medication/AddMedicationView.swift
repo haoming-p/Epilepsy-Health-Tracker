@@ -9,47 +9,36 @@
 import SwiftUI
 
 struct AddMedicationView: View {
-    @State private var pillName = "Valproate"
-    @State private var pillCount = 2
-    @State private var duration = 7
-    @State private var medicalNote = "Lorem ipsum dolor sit amet..."
-    @State private var notificationTimes: [Date] = [Date()]
+    @EnvironmentObject var session: UserSession
+    @Environment(\.dismiss) var dismiss
+    @ObservedObject var viewModel: MedicationViewModel
+
     @State private var showingTimePicker = false
     @State private var newNotificationTime = Date()
+    @State private var isSubmitting = false
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Group {
-                        Text("Pills Name")
+                        Text("Medication Name")
                             .fontWeight(.semibold)
-                        TextField("Enter pill name", text: $pillName)
+                        TextField("Enter medication name", text: $viewModel.medicationName)
                             .padding()
                             .background(Color.blue.opacity(0.1))
                             .cornerRadius(10)
                     }
 
                     Group {
-                        Text("Amount & Duration")
+                        Text("Dosage")
                             .fontWeight(.semibold)
                         
                         HStack(spacing: 16) {
                             HStack {
-                                Image(systemName: "capsule")
-                                TextField("Pills", value: $pillCount, formatter: NumberFormatter())
-                                    .keyboardType(.numberPad)
-                                    .frame(width: 50)
-                            }
-                            .padding()
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(10)
-                            
-                            HStack {
-                                Image(systemName: "calendar")
-                                TextField("Days", value: $duration, formatter: NumberFormatter())
-                                    .keyboardType(.numberPad)
-                                    .frame(width: 50)
+                                Image(systemName: "pills")
+                                    .padding(.trailing, 10)
+                                TextField("Dosage", text: $viewModel.pillCount)
                             }
                             .padding()
                             .background(Color.blue.opacity(0.1))
@@ -58,23 +47,13 @@ struct AddMedicationView: View {
                     }
 
                     Group {
-                        Text("Medical Order")
+                        Text("Schedule")
                             .fontWeight(.semibold)
-                        TextEditor(text: $medicalNote)
-                            .frame(height: 80)
-                            .padding(8)
-                            .background(Color.blue.opacity(0.05))
-                            .cornerRadius(10)
-                    }
-
-                    Group {
-                        Text("Notification")
-                            .fontWeight(.semibold)
-                        ForEach(notificationTimes.indices, id: \.self) { i in
+                        ForEach(viewModel.notificationTimes.indices, id: \.self) { i in
                             HStack {
                                 Image(systemName: "bell.fill")
                                     .foregroundColor(.blue)
-                                Text(notificationTimes[i], style: .time)
+                                Text(viewModel.notificationTimes[i], style: .time)
                                 Spacer()
                             }
                             .padding()
@@ -87,7 +66,7 @@ struct AddMedicationView: View {
                         }) {
                             HStack {
                                 Image(systemName: "plus")
-                                Text("Add Notification Time")
+                                Text("Add Time")
                             }
                             .padding()
                             .frame(maxWidth: .infinity)
@@ -99,8 +78,18 @@ struct AddMedicationView: View {
 
                     Button(action: {
                         // Save logic goes here
+                        Task {
+                            guard let token = session.token,
+                                          let patientId = session.patientId else { return }
+                            isSubmitting = true
+                            await viewModel.submitMedication(for: patientId, token: token)
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            isSubmitting = false
+                            dismiss()
+                        }
+                        
                     }) {
-                        Text("Done")
+                        Text(isSubmitting ? "Submitting..." : "Submit")
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -108,6 +97,7 @@ struct AddMedicationView: View {
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
+                    .disabled(isSubmitting)
                     .padding(.top)
                 }
                 .padding()
@@ -131,7 +121,7 @@ struct AddMedicationView: View {
                         Spacer()
 
                         Button("Save") {
-                            notificationTimes.append(newNotificationTime)
+                            viewModel.notificationTimes.append(newNotificationTime)
                             showingTimePicker = false
                         }
                         .foregroundColor(.blue)
@@ -144,3 +134,5 @@ struct AddMedicationView: View {
         }
     }
 }
+
+

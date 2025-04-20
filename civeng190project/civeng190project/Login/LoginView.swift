@@ -9,9 +9,10 @@ import SwiftUI
 
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
+    @EnvironmentObject var session: UserSession
 
     var body: some View {
-        if viewModel.isLoggedIn {
+        if session.isLoggedIn {
             MainView()
         } else {
             VStack(spacing: 20) {
@@ -38,7 +39,7 @@ struct LoginView: View {
 
                 Button(action: {
                     Task {
-                        await viewModel.login()
+                        await viewModel.login(using: session)
                     }
                 }) {
                     Text("Login")
@@ -54,3 +55,7 @@ struct LoginView: View {
         }
     }
 }
+//
+//#Preview {
+//    LoginView()
+//}
