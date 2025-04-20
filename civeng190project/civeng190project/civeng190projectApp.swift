@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct civeng190projectApp: App {
+    @StateObject private var session = UserSession()
+    
     var body: some Scene {
         WindowGroup {
             LoginView()
+                .environmentObject(session)
         }
     }
 }
