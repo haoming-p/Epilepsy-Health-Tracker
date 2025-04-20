@@ -133,7 +133,7 @@ const heartRateController = {
           const heartRate = obs.valueQuantity?.value;
           
           // Check if abnormal (< 80 or > 165)
-          if (heartRate < 80 || heartRate > 165) {
+          if (heartRate < 60 || heartRate > 100) {
             const timestamp = obs.effectiveDateTime;
             const datePart = timestamp.split('T')[0];
             const timePart = timestamp.split('T')[1].substring(0, 8);
