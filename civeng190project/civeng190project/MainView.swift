@@ -14,8 +14,8 @@ struct MainView: View {
         TabView {
             ContentView()
                 .tabItem {
-                    Image(systemName: "house.fill")
-                    Text("Home")
+                    Image(systemName: "heart.fill")
+                    Text("Heart Rate")
                 }
 
             MedicationTrackerView()
